@@ -623,6 +623,33 @@ tfoot td{
   font-size:13.5px;
 }
 
+/* PESAN MELAYANG — selalu terlihat walau layar sedang di bawah */
+.pesan-layar{
+  position:fixed;
+  left:50%;
+  bottom:16px;
+  z-index:80;
+  max-width:92vw;
+  padding:13px 18px;
+  transform:translateX(-50%);
+  border-radius:11px;
+  background:#0f766e;
+  color:#fff;
+  font-size:14.5px;
+  line-height:1.5;
+  text-align:center;
+  box-shadow:0 8px 24px #0f172a66;
+  cursor:pointer;
+}
+
+.pesan-layar.gagal{ background:#b91c1c; }
+
+.pesan-layar[hidden]{ display:none; }
+
+@media print{
+  .pesan-layar{ display:none!important; }
+}
+
 /* KOTAK MASUK KATA SANDI */
 .dialog{
   position:fixed;
@@ -1171,7 +1198,6 @@ tfoot td{
   .bar-hadir{ font-size:12px; gap:6px; }
   .chip-hadir{ padding:3px 9px; }
 }
-
 </style>
 </head>
 
@@ -1364,6 +1390,12 @@ tfoot td{
       tercatat sendiri-sendiri. Kalau hujan dan tidak ada pemancangan,
       centang kotak di bawah lalu simpan — harinya tetap tercatat
       dengan 0 titik beserta keterangan cuacanya.
+      <br><br>
+      Siapa pun di tim boleh menginput, cukup memakai nama sendiri
+      saat masuk. Setelah menekan Simpan, tunggu pemberitahuan hijau
+      <b>"Berhasil disimpan ke server"</b> yang muncul di bawah layar.
+      Kalau pemberitahuannya merah, jangan tutup halaman — datanya
+      ditahan di HP dan dikirim ulang otomatis saat sinyal kembali.
     </div>
 
     <form id="formTimeSheet">
@@ -1896,6 +1928,8 @@ tfoot td{
 
 </main>
 
+<div id="pesanLayar" class="pesan-layar" hidden onclick="this.hidden=true"></div>
+
 <div id="kotakZoom" class="dialog" hidden onclick="tutupZoom()">
   <div class="isi-zoom">
     <img id="gambarZoom" alt="Foto kegiatan">
@@ -1916,6 +1950,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbw6zbLe2O_JhngqmmDt3OEq
   2. KEADAAN DATA
 ==========================================================*/
 const KUNCI_SESI = "AEN_SANDI_SESI";
+const KUNCI_ANTRIAN = "AEN_ANTRIAN_TERTUNDA";
 const KUNCI_NAMA = "AEN_NAMA_PENGINPUT";
 
 const KONFIG_AWAL = {
@@ -2141,7 +2176,44 @@ function setStatus(kondisi, teks){
   $("statusTeks").textContent = teks;
 }
 
+let jedaPesanLayar = null;
+
+/* Pemberitahuan yang muncul di dekat jempol, bukan di paling atas
+   halaman, supaya tetap terbaca saat mengisi formulir panjang di HP. */
+function pesanLayar(teks, gagal){
+  const kotak = $("pesanLayar");
+
+  kotak.textContent = teks;
+  kotak.className = "pesan-layar" + (gagal ? " gagal" : "");
+  kotak.hidden = false;
+
+  clearTimeout(jedaPesanLayar);
+
+  jedaPesanLayar = setTimeout(() => { kotak.hidden = true; },
+    gagal ? 12000 : 5000);
+}
+
+/* Antrian ikut disimpan di perangkat, jadi data yang belum terkirim
+   tidak hilang kalau halaman terlanjur ditutup atau HP mati. */
+function simpanAntrian(){
+  try{
+    localStorage.setItem(KUNCI_ANTRIAN, JSON.stringify(
+      antrian.map(pesan => Object.assign({}, pesan, { sandi:undefined }))));
+  }catch(error){ /* penyimpanan penuh atau dilarang */ }
+}
+
+function muatAntrian(){
+  try{
+    const isi = JSON.parse(localStorage.getItem(KUNCI_ANTRIAN) || "[]");
+    antrian = Array.isArray(isi) ? isi : [];
+  }catch(error){
+    antrian = [];
+  }
+}
+
 function perbaruiPeringatanAntrian(){
+  simpanAntrian();
+
   const ada = antrian.length > 0;
 
   $("peringatanAntrian").hidden = !ada;
@@ -2186,7 +2258,7 @@ async function kirimKeServer(pesan){
 async function catatPerubahan(pesan){
   if(!apiAktif()){
     setStatus("offline", "Alamat server belum diisi — perubahan tidak tersimpan.");
-    return;
+    return false;
   }
 
   pesan.sandi = sandiSesi;
@@ -2199,6 +2271,7 @@ async function catatPerubahan(pesan){
     setStatus("online", "Tersimpan oleh " + namaPengguna + ", pukul "
       + jamSekarang() + ".");
     perbaruiPeringatanAntrian();
+    return true;
   }catch(error){
     if(/sandi/i.test(error.message)){
       setStatus("offline", error.message);
@@ -2208,13 +2281,14 @@ async function catatPerubahan(pesan){
       kosongkanData();
       perbaruiKunci();
       renderSemua();
-      return;
+      return false;
     }
 
     antrian.push(pesan);
     perbaruiPeringatanAntrian();
     setStatus("offline",
       "Belum terkirim (" + antrian.length + " menunggu). Akan dicoba lagi otomatis.");
+    return false;
   }
 }
 
@@ -3312,7 +3386,7 @@ function ubahTarget(field, value){
   renderDashboard();
 }
 
-$("formTimeSheet").addEventListener("submit", e => {
+$("formTimeSheet").addEventListener("submit", async e => {
   e.preventDefault();
 
   const detail = bacaIsianTitik();
@@ -3372,9 +3446,29 @@ $("formTimeSheet").addEventListener("submit", e => {
 
   batalTimeSheet();
   renderSemua();
-  catatPerubahan({ aksi:"simpan", tipe:"timesheet", item:item });
-  buka("dashboard");
+
+  pesanLayar("Mengirim ke server…", false);
+
+  const tersimpan = await catatPerubahan({
+    aksi:"simpan", tipe:"timesheet", item:item
+  });
+
+  laporkanSimpan(tersimpan, "Time Sheet " + tanggalIndo(item.tanggal)
+    + " (" + item.jumlahTitik + " titik)");
+
+  if(tersimpan){ buka("dashboard"); }
 });
+
+/* Satu tempat untuk memberi tahu berhasil atau tidaknya penyimpanan,
+   supaya penginput di lapangan tidak menebak-nebak. */
+function laporkanSimpan(tersimpan, keterangan){
+  pesanLayar(tersimpan
+    ? "Berhasil disimpan ke server: " + keterangan + "."
+    : "BELUM tersimpan ke server: " + keterangan
+      + ". Data ditahan di HP ini dan akan dikirim otomatis begitu "
+      + "jaringan pulih — jangan tutup halaman dulu.",
+    !tersimpan);
+}
 
 function ubahTimeSheet(id){
   const item = dataTimeSheet[cariIndeks(dataTimeSheet, id)];
@@ -4218,7 +4312,7 @@ function gambarRekapBulanan(perBulan){
 /*==========================================================
   11. DAILY ABSENSI
 ==========================================================*/
-$("formAbsensi").addEventListener("submit", e => {
+$("formAbsensi").addEventListener("submit", async e => {
   e.preventDefault();
 
   const item = Object.fromEntries(new FormData(e.target).entries());
@@ -4248,7 +4342,15 @@ $("formAbsensi").addEventListener("submit", e => {
 
   batalAbsensi();
   renderSemua();
-  catatPerubahan({ aksi:"simpan", tipe:"absensi", item:item });
+
+  pesanLayar("Mengirim ke server…", false);
+
+  const tersimpan = await catatPerubahan({
+    aksi:"simpan", tipe:"absensi", item:item
+  });
+
+  laporkanSimpan(tersimpan, "Absensi " + item.nama + " "
+    + tanggalIndo(item.tanggal));
 });
 
 function hapusAbsensi(id){
@@ -4460,7 +4562,7 @@ function gambarRekapNamaBulanan(){
 /*==========================================================
   12. PETTY CASH
 ==========================================================*/
-$("formPetty").addEventListener("submit", e => {
+$("formPetty").addEventListener("submit", async e => {
   e.preventDefault();
 
   const item = Object.fromEntries(new FormData(e.target).entries());
@@ -4501,7 +4603,14 @@ $("formPetty").addEventListener("submit", e => {
   batalPetty();
   renderPetty();
   renderLog();
-  catatPerubahan({ aksi:"simpan", tipe:"petty", item:item });
+
+  pesanLayar("Mengirim ke server…", false);
+
+  const tersimpan = await catatPerubahan({
+    aksi:"simpan", tipe:"petty", item:item
+  });
+
+  laporkanSimpan(tersimpan, "Petty Cash " + tanggalIndo(item.tanggal));
 });
 
 function ubahPetty(id){
@@ -4691,6 +4800,38 @@ function fotoUntuk(item){
   });
 }
 
+/* Nama shift sebuah foto. Foto hasil Segarkan tidak menyebut shift
+   karena nama folder di Drive hanya memuat tanggal. Dalam hal itu
+   shift diambil dari Daily Time Sheet — tetapi HANYA kalau tanggal
+   tersebut memang cuma punya satu shift. Kalau harinya dua shift,
+   label dibiarkan netral daripada salah menebak. */
+function shiftFoto(foto){
+  const tertulis = String(foto.shift || "").trim();
+
+  if(tertulis){ return tertulis; }
+
+  const tanggal = normalisasiTanggal(foto.tanggal);
+  const poFoto = String(foto.po || "").trim();
+
+  const shift = new Set();
+
+  dataTimeSheet.forEach(item => {
+    if(normalisasiTanggal(item.tanggal) !== tanggal){ return; }
+
+    const poItem = String(item.po || "").trim();
+
+    if(poFoto && poItem && poFoto !== poItem){ return; }
+
+    const nama = String(item.shift || "").trim();
+
+    if(nama){ shift.add(nama); }
+  });
+
+  return shift.size === 1
+    ? [...shift][0]
+    : "Semua shift";
+}
+
 /* Semua foto pada satu tanggal, tanpa memandang shift. */
 function fotoTanggal(tanggal, po){
   const kunci = normalisasiTanggal(tanggal);
@@ -4732,7 +4873,7 @@ function bukaZoom(id){
   $("gambarZoom").src = alamatFoto(foto, LEBAR_BESAR);
 
   $("ketZoom").textContent = tanggalIndo(foto.tanggal)
-    + " · " + (foto.shift || "-")
+    + " · " + shiftFoto(foto)
     + (foto.keterangan ? " · " + foto.keterangan : "")
     + (foto.titik ? " · " + foto.titik : "")
     + " · oleh " + (foto.penginput || "-");
@@ -5266,7 +5407,7 @@ function renderFoto(){
              onclick="bukaZoom('${aman(foto.id)}')">
 
         <div class="ket">
-          <b>${aman(foto.shift || "Semua shift")}</b>
+          <b>${aman(shiftFoto(foto))}</b>
           ${aman(foto.keterangan || foto.titik || "Foto kegiatan")}<br>
           oleh ${aman(foto.penginput || "-")}
         </div>
@@ -5288,7 +5429,7 @@ function renderFoto(){
       const perShift = {};
 
       isi.forEach(foto => {
-        const shift = foto.shift || "Tanpa keterangan shift";
+        const shift = shiftFoto(foto);
         perShift[shift] = (perShift[shift] || 0) + 1;
       });
 
@@ -5851,8 +5992,9 @@ if(typeof catatPerubahan === "function"){
 
   catatPerubahan = async function(pesan){
     tandaiMengetik();
-    await catatAsli(pesan);
+    const hasil = await catatAsli(pesan);
     kirimDenyut(false);
+    return hasil;
   };
 }
 
@@ -5870,7 +6012,6 @@ if(hadirAktif()){
   jamDenyut = setInterval(() => kirimDenyut(false), JEDA_DENYUT);
   kirimDenyut(false);
 }
-
 </script>
 
 </body>
