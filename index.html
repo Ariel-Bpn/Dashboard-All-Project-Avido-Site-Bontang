@@ -1736,6 +1736,13 @@ tfoot td{
       tanggalnya terlanjur salah — misalnya dulu diisi manual satu
       tanggal untuk semua foto. Tombol itu membaca ulang nama folder
       tiap foto lalu membetulkan tanggalnya, tanpa mengunggah ulang.
+      <br><br>
+      Mau foto dipisah per shift? Di dalam folder tanggal, buat
+      subfolder bernama <b>Pagi-Sore</b> dan <b>Sore-Malam</b>, lalu
+      pindahkan fotonya ke subfolder yang sesuai. Untuk foto yang
+      sudah terlanjur terdaftar, tekan <b>Selaraskan Shift dari
+      Folder</b> — tanggal dan shiftnya dibetulkan mengikuti susunan
+      folder yang sekarang, tanpa menghapus atau mengunggah apa pun.
     </div>
 
     <div class="form">
@@ -1757,6 +1764,11 @@ tfoot td{
         <button type="button" class="gray" id="tombolPerbaikiTanggal"
                 onclick="perbaikiTanggalFoto()">
           Perbaiki Tanggal Foto
+        </button>
+
+        <button type="button" class="gray" id="tombolSelaraskan"
+                onclick="segarkanFoto(true)">
+          Selaraskan Shift dari Folder
         </button>
       </div>
     </div>
@@ -5128,7 +5140,9 @@ function simpanFolderInduk(){
 
 /* Sekali tekan: seluruh folder bulan dan folder tanggal di dalam
    folder induk dibaca ulang, dan hanya foto baru yang masuk. */
-async function segarkanFoto(){
+async function segarkanFoto(mode){
+  const selaras = mode === true;
+
   if(!folderIndukId){
     const daftar = idDrive($("folderIndukFoto").value);
 
@@ -5147,9 +5161,11 @@ async function segarkanFoto(){
   }
 
   $("tombolSegarkan").disabled = true;
+  $("tombolSelaraskan").disabled = true;
 
   let masuk = 0;
   let lewat = 0;
+  let diperbarui = 0;
   let putaran = 0;
 
   try{
@@ -5159,7 +5175,10 @@ async function segarkanFoto(){
       putaran++;
 
       tampilkanStatusSegar(putaran === 1
-        ? "Membaca folder Google Drive… mohon tunggu, jangan tutup halaman."
+        ? (selaras
+            ? "Menyelaraskan tanggal dan shift dengan susunan folder… "
+              + "mohon tunggu, jangan tutup halaman."
+            : "Membaca folder Google Drive… mohon tunggu, jangan tutup halaman.")
         : "Masih banyak foto, melanjutkan bagian ke-" + putaran + "…",
         false);
 
@@ -5167,6 +5186,7 @@ async function segarkanFoto(){
         aksi:"fotoDrive",
         sandi:sandiSesi,
         penginput:namaPengguna,
+        perbarui:selaras,
         idList:[folderIndukId],
         item:{
           tanggal:"",
@@ -5182,6 +5202,7 @@ async function segarkanFoto(){
 
       masuk += (jawaban.items || []).length;
       lewat += jawaban.lewat || 0;
+      diperbarui += jawaban.diperbarui || 0;
 
       lanjut = !!jawaban.terpotong && (jawaban.items || []).length > 0;
     }
@@ -5190,10 +5211,12 @@ async function segarkanFoto(){
 
     simpanDaftarPo();
 
-    tampilkanStatusSegar(masuk
-      ? masuk + " foto baru masuk. " + lewat + " foto sudah terdaftar "
-        + "sebelumnya dan dilewati."
-      : "Tidak ada foto baru. Semua foto di folder itu sudah terdaftar.",
+    tampilkanStatusSegar(
+      (masuk ? masuk + " foto baru masuk. "
+             : "Tidak ada foto baru. ")
+      + (selaras
+          ? diperbarui + " foto lama diselaraskan dengan susunan foldernya."
+          : lewat + " foto sudah terdaftar sebelumnya dan dilewati."),
       false);
 
     if(masuk){
@@ -5201,11 +5224,23 @@ async function segarkanFoto(){
         masuk + " foto baru dari Google Drive (Segarkan)");
     }
 
-    renderSemua();
+    if(diperbarui){
+      catatLokal("Ubah", "foto", "",
+        diperbarui + " foto diselaraskan shift/tanggalnya dari folder Drive");
+    }
+
+    /* Foto lama yang baru dibetulkan hanya berubah di server, jadi
+       datanya dimuat ulang supaya galeri ikut menyesuaikan. */
+    if(diperbarui){
+      await muatDariServer();
+    }else{
+      renderSemua();
+    }
   }catch(error){
     tampilkanStatusSegar("Gagal menyegarkan: " + error.message, true);
   }finally{
     $("tombolSegarkan").disabled = false;
+    $("tombolSelaraskan").disabled = false;
   }
 }
 
@@ -5426,23 +5461,40 @@ function renderFoto(){
     const isiTanggal = tanggalBulan.map(kunci => {
       const isi = perTanggal.get(kunci);
 
-      const perShift = {};
+      /* Foto dipisah per shift. Urutannya Pagi-Sore dulu, lalu
+         Sore-Malam, baru sisanya. */
+      const perShift = new Map();
 
       isi.forEach(foto => {
         const shift = shiftFoto(foto);
-        perShift[shift] = (perShift[shift] || 0) + 1;
+
+        if(!perShift.has(shift)){ perShift.set(shift, []); }
+
+        perShift.get(shift).push(foto);
       });
 
-      const rincianShift = Object.keys(perShift)
-        .map(shift => shift + ": " + perShift[shift]).join(" · ");
+      const urutShift = ["Pagi-Sore", "Sore-Malam"];
 
-      return `
-        <div class="sub-judul">
-          ${tanggalIndo(kunci)} — ${isi.length} foto · ${aman(rincianShift)}
-        </div>
+      const daftarShift = [...perShift.keys()].sort((a, b) => {
+        const ia = urutShift.indexOf(a);
+        const ib = urutShift.indexOf(b);
 
-        <div class="kisi-foto">${isi.map(kartuFoto).join("")}</div>
-      `;
+        return (ia < 0 ? 9 : ia) - (ib < 0 ? 9 : ib);
+      });
+
+      const blokShift = daftarShift.map(shift => {
+        const foto = perShift.get(shift);
+
+        return `
+          <div class="sub-judul">
+            ${tanggalIndo(kunci)} — ${aman(shift)} · ${foto.length} foto
+          </div>
+
+          <div class="kisi-foto">${foto.map(kartuFoto).join("")}</div>
+        `;
+      }).join("");
+
+      return blokShift;
     }).join("");
 
     return `
