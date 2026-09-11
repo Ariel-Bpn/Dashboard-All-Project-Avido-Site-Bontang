@@ -1252,6 +1252,28 @@ tfoot td{
     <button type="button" id="tombolProsesMasuk" onclick="prosesMasuk()">
       Masuk
     </button>
+
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0;
+                font-size:12.5px;color:#5b6b7c">
+      Alamat server: <b id="ekorAlamatServer">—</b>
+
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button type="button" class="gray" style="width:auto;flex:1;margin:0"
+                onclick="ujiAlamatServer()">
+          Uji koneksi
+        </button>
+
+        <button type="button" class="gray" style="width:auto;flex:1;margin:0"
+                onclick="gantiAlamatServer()">
+          Ganti
+        </button>
+
+        <button type="button" class="gray" style="width:auto;flex:1;margin:0"
+                onclick="pulihkanAlamatServer()">
+          Pulihkan
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1293,6 +1315,10 @@ tfoot td{
 
   <button type="button" data-menu="foto" onclick="buka('foto')">
     Foto Kegiatan
+  </button>
+
+  <button type="button" data-menu="inventaris" onclick="buka('inventaris')">
+    Inventaris Aset
   </button>
 
   <button type="button" data-menu="loginput" onclick="buka('loginput')">
@@ -1850,6 +1876,298 @@ tfoot td{
 </div>
 
 <!-- LOG INPUT -->
+<!-- INVENTARIS ASET -->
+<div id="inventaris" class="page">
+
+  <div id="kpiInventaris" class="grid"></div>
+
+  <section>
+    <div class="judul-baris">
+      <h2 id="judulInventaris">Input Aset Inventaris</h2>
+      <span class="lencana">Alat milik PT. Avindo Energi Nusantara</span>
+    </div>
+
+    <form id="formInventaris" class="form">
+
+      <label>
+        Kode Aset
+        <input name="kode" required placeholder="AEN-2026-001">
+      </label>
+
+      <label>
+        Nama Alat
+        <input name="nama" required placeholder="Contoh: Mesin Las, Genset">
+      </label>
+
+      <label>
+        Merk / Tipe
+        <input name="merk">
+      </label>
+
+      <label>
+        No. Seri / No. Rangka
+        <input name="seri">
+      </label>
+
+      <label>
+        Jumlah
+        <input type="number" inputmode="numeric" name="jumlah" min="1" value="1">
+      </label>
+
+      <label>
+        Satuan
+        <select name="satuan">
+          <option>Unit</option>
+          <option>Set</option>
+          <option>Pcs</option>
+          <option>Roll</option>
+          <option>Lembar</option>
+          <option>Batang</option>
+        </select>
+      </label>
+
+      <label>
+        Tanggal Pembelian
+        <input type="date" name="tanggal" required>
+      </label>
+
+      <label>
+        No. PO / Nota Pembelian
+        <input name="nota">
+      </label>
+
+      <label>
+        Lokasi Penyimpanan
+        <input name="lokasi" list="pilihanLokasi" required
+               placeholder="Gudang Bontang / Site / Kantor">
+      </label>
+
+      <datalist id="pilihanLokasi"></datalist>
+
+      <label>
+        Penanggung Jawab
+        <input name="pj" list="pilihanPj" required
+               placeholder="Nama pemegang alat">
+      </label>
+
+      <datalist id="pilihanPj"></datalist>
+
+      <label>
+        Kondisi
+        <select name="kondisi">
+          <option>Baik</option>
+          <option>Rusak Ringan</option>
+          <option>Rusak Berat</option>
+          <option>Hilang</option>
+        </select>
+      </label>
+
+      <label>
+        Link Foto Google Drive (opsional)
+        <input name="foto" placeholder="https://drive.google.com/…">
+      </label>
+
+      <label style="grid-column:1/-1">
+        Keterangan
+        <textarea name="keterangan"
+                  placeholder="Kelengkapan, catatan kerusakan, dan lain-lain"></textarea>
+      </label>
+
+      <div class="form-action">
+        <button type="submit">Simpan</button>
+        <button type="button" class="gray" onclick="batalInventaris()">Batal</button>
+      </div>
+
+    </form>
+  </section>
+
+  <section>
+    <div class="judul-baris">
+      <h2>Daftar Aset</h2>
+      <button type="button" class="gray no-print" onclick="unduhCsvInventaris()">
+        Unduh CSV
+      </button>
+    </div>
+
+    <div class="saring no-print">
+      <label>
+        Cari kode atau nama alat
+        <input id="cariAset" oninput="renderInventaris()" placeholder="Semua aset">
+      </label>
+
+      <label>
+        Lokasi
+        <select id="saringLokasi" onchange="renderInventaris()">
+          <option value="">Semua lokasi</option>
+        </select>
+      </label>
+
+      <label>
+        Kondisi
+        <select id="saringKondisi" onchange="renderInventaris()">
+          <option value="">Semua kondisi</option>
+          <option>Baik</option>
+          <option>Rusak Ringan</option>
+          <option>Rusak Berat</option>
+          <option>Hilang</option>
+        </select>
+      </label>
+
+      <label>
+        Penanggung Jawab
+        <select id="saringPj" onchange="renderInventaris()">
+          <option value="">Semua nama</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Kode Aset</th>
+            <th>Nama Alat</th>
+            <th>Merk / Tipe</th>
+            <th>No. Seri</th>
+            <th>Jumlah</th>
+            <th>Tgl. Beli</th>
+            <th>No. PO / Nota</th>
+            <th>Lokasi</th>
+            <th>Penanggung Jawab</th>
+            <th>Kondisi</th>
+            <th>Keterangan</th>
+            <th>Foto</th>
+            <th>Diinput oleh</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+
+        <tbody id="daftarAset"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="judul-baris">
+      <h2>Rekap Aset per Penanggung Jawab</h2>
+      <span class="lencana" id="lencanaAset">—</span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Penanggung Jawab</th>
+            <th>Jumlah Aset</th>
+            <th>Baik</th>
+            <th>Rusak Ringan</th>
+            <th>Rusak Berat</th>
+            <th>Hilang</th>
+          </tr>
+        </thead>
+
+        <tbody id="rekapPjAset"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="judul-baris">
+      <h2 id="judulMutasi">Serah Terima &amp; Perubahan Kondisi</h2>
+      <span class="lencana">Jejak siapa memegang alat</span>
+    </div>
+
+    <form id="formMutasi" class="form">
+
+      <label>
+        Tanggal
+        <input type="date" name="tanggal" required>
+      </label>
+
+      <label>
+        Aset
+        <select name="kode" id="pilihanAsetMutasi" required></select>
+      </label>
+
+      <label>
+        Diserahkan Dari
+        <input name="dari" placeholder="Nama pemegang lama">
+      </label>
+
+      <label>
+        Diserahkan Kepada
+        <input name="ke" required placeholder="Nama pemegang baru">
+      </label>
+
+      <label>
+        Lokasi Baru
+        <input name="lokasi" list="pilihanLokasi"
+               placeholder="Kosongkan bila tidak berubah">
+      </label>
+
+      <label>
+        Kondisi Saat Diserahkan
+        <select name="kondisi">
+          <option>Baik</option>
+          <option>Rusak Ringan</option>
+          <option>Rusak Berat</option>
+          <option>Hilang</option>
+        </select>
+      </label>
+
+      <label style="grid-column:1/-1">
+        Keterangan
+        <textarea name="keterangan"
+                  placeholder="Alasan pemindahan, catatan kerusakan, dan lain-lain"></textarea>
+      </label>
+
+      <div class="form-action">
+        <button type="submit">Catat Serah Terima</button>
+        <button type="button" class="gray" onclick="batalMutasi()">Batal</button>
+      </div>
+
+    </form>
+
+    <div class="info no-print">
+      Mencatat serah terima juga <b>langsung memperbarui</b> penanggung
+      jawab, lokasi, dan kondisi aset di Daftar Aset. Catatan lama tidak
+      pernah dihapus, jadi kalau ada alat hilang masih bisa ditelusuri
+      terakhir dipegang siapa.
+    </div>
+  </section>
+
+  <section>
+    <div class="judul-baris">
+      <h2>Riwayat Serah Terima &amp; Kondisi</h2>
+      <button type="button" class="gray no-print" onclick="unduhCsvMutasi()">
+        Unduh CSV
+      </button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tanggal</th>
+            <th>Kode Aset</th>
+            <th>Nama Alat</th>
+            <th>Dari</th>
+            <th>Kepada</th>
+            <th>Lokasi</th>
+            <th>Kondisi</th>
+            <th>Keterangan</th>
+            <th>Dicatat oleh</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+
+        <tbody id="daftarMutasi"></tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
 <div id="loginput" class="page">
 
   <div id="peringatanLog" class="info perhatian no-print" hidden>
@@ -1876,6 +2194,7 @@ tfoot td{
             <th>Time Sheet</th>
             <th>Absensi</th>
             <th>Petty Cash</th>
+            <th>Inventaris</th>
             <th>Target PO</th>
             <th>Total</th>
             <th>Terakhir aktif</th>
@@ -1913,6 +2232,8 @@ tfoot td{
           <option value="timesheet">Time Sheet</option>
           <option value="absensi">Absensi</option>
           <option value="petty">Petty Cash</option>
+          <option value="inventaris">Inventaris Aset</option>
+          <option value="mutasi">Serah Terima Aset</option>
           <option value="konfigurasi">Target PO</option>
         </select>
       </label>
@@ -1956,7 +2277,124 @@ tfoot td{
   Tempel URL Web App Google Apps Script (berakhiran /exec)
   di antara tanda kutip di bawah ini.
 ==========================================================*/
-const API_URL = "https://script.google.com/macros/s/AKfycbw6zbLe2O_JhngqmmDt3OEqWVuNE_wvh4uGkuaeim5NdBRdcy7rHACPmVA857BHiQU8/exec";
+const API_URL_BAWAAN = "https://script.google.com/macros/s/AKfycbw6zbLe2O_JhngqmmDt3OEqWVuNE_wvh4uGkuaeim5NdBRdcy7rHACPmVA857BHiQU8/exec";
+
+/* Kalau suatu saat Apps Script dipasang ulang dan URL /exec-nya
+   berubah, alamat baru cukup ditempel lewat tombol "Ganti" di layar
+   masuk. Alamat itu disimpan di perangkat ini saja dan dipakai
+   menggantikan alamat bawaan di atas — tidak ada data yang ikut
+   tersimpan di situ, hanya alamatnya. */
+const KUNCI_URL_SERVER = "AEN_URL_SERVER";
+
+function alamatServer(){
+  try{
+    const simpanan = String(localStorage.getItem(KUNCI_URL_SERVER) || "").trim();
+
+    if(simpanan){ return simpanan; }
+  }catch(error){ /* penyimpanan dilarang */ }
+
+  return API_URL_BAWAAN;
+}
+
+function ekorAlamat(url){
+  const teks = String(url || "").trim();
+  const potongan = teks.split("/");
+  const kode = potongan.length > 5 ? potongan[5] : teks;
+
+  return kode.length > 14 ? "…" + kode.slice(-10) : kode;
+}
+
+function tampilkanAlamat(){
+  const kotak = document.getElementById("ekorAlamatServer");
+
+  if(kotak){
+    kotak.textContent = ekorAlamat(alamatServer());
+  }
+}
+
+function gantiAlamatServer(){
+  const isian = prompt(
+    "Tempel URL Web App Apps Script yang baru (harus berakhiran /exec):",
+    alamatServer());
+
+  if(isian === null){ return; }
+
+  const bersih = String(isian).trim();
+
+  if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(bersih)){
+    alert("Alamat tidak dikenali. Alamat yang benar dimulai dengan\n"
+      + "https://script.google.com/macros/s/…  dan berakhiran /exec");
+    return;
+  }
+
+  try{
+    localStorage.setItem(KUNCI_URL_SERVER, bersih);
+  }catch(error){
+    alert("Alamat tidak bisa disimpan di perangkat ini.");
+    return;
+  }
+
+  tampilkanAlamat();
+  alert("Alamat server diganti. Halaman akan dimuat ulang.");
+  location.reload();
+}
+
+function pulihkanAlamatServer(){
+  try{ localStorage.removeItem(KUNCI_URL_SERVER); }
+  catch(error){}
+
+  tampilkanAlamat();
+  location.reload();
+}
+
+/* Memeriksa alamat server tanpa perlu kata sandi yang benar.
+   Tujuannya membedakan tiga hal: alamat salah (404), deployment
+   belum dibuka untuk umum (jawaban bukan JSON), atau alamat sudah
+   benar dan hanya sandinya yang keliru. */
+async function ujiAlamatServer(){
+  const alamat = alamatServer();
+
+  tampilkanPesanSandi("Menguji alamat server…");
+
+  try{
+    const jawaban = await fetch(alamat, {
+      method:"POST",
+      headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body:JSON.stringify({ aksi:"masuk", sandi:"__uji__", penginput:"Uji" })
+    });
+
+    if(jawaban.status === 404){
+      tampilkanPesanSandi(
+        "Alamat server TIDAK DITEMUKAN (404). Deployment lama sudah "
+        + "tidak berlaku. Buka Apps Script → Deploy → Manage deployments, "
+        + "salin URL /exec yang aktif, lalu tekan Ganti di bawah.");
+      return;
+    }
+
+    if(!jawaban.ok){
+      tampilkanPesanSandi("Server menjawab kode " + jawaban.status
+        + ". Periksa deployment Apps Script.");
+      return;
+    }
+
+    const teks = await jawaban.text();
+
+    try{
+      JSON.parse(teks);
+    }catch(error){
+      tampilkanPesanSandi(
+        "Alamat sudah benar, tetapi Web App belum dibuka untuk umum. "
+        + "Atur Who has access = Anyone lalu deploy versi baru.");
+      return;
+    }
+
+    tampilkanPesanSandi(
+      "Alamat server sudah benar dan aktif. Silakan masuk dengan "
+      + "nama dan kata sandi Anda.");
+  }catch(error){
+    tampilkanPesanSandi("Server tidak bisa dihubungi: " + error.message);
+  }
+}
 
 /*==========================================================
   2. KEADAAN DATA
@@ -2001,6 +2439,8 @@ const NAMA_JENIS = {
   absensi:"Absensi",
   petty:"Petty Cash",
   foto:"Foto Kegiatan",
+  inventaris:"Inventaris Aset",
+  mutasi:"Serah Terima Aset",
   konfigurasi:"Target PO"
 };
 
@@ -2019,6 +2459,8 @@ let dataAbsensi   = [];
 let dataPetty     = [];
 let dataFoto      = [];
 let dataLog       = [];
+let dataInventaris = [];
+let dataMutasi     = [];
 let konfigurasi   = Object.assign({}, KONFIG_AWAL);
 
 let serverPunyaLog = true;
@@ -2029,6 +2471,7 @@ let antrian = [];
 let editIdTimeSheet = null;
 let editIdAbsensi   = null;
 let editIdPetty     = null;
+let editIdInventaris = null;
 
 const $ = id => document.getElementById(id);
 const angka = value => Number(String(value ?? "").replace(",", ".")) || 0;
@@ -2156,6 +2599,8 @@ function kosongkanData(){
   dataPetty = [];
   dataFoto = [];
   dataLog = [];
+  dataInventaris = [];
+  dataMutasi = [];
   konfigurasi = Object.assign({}, KONFIG_AWAL);
   daftarPo = [];
   poTerpilih = "";
@@ -2181,7 +2626,7 @@ $("isianSandi").addEventListener("keydown", e => {
   4. HUBUNGAN KE SERVER
 ==========================================================*/
 const apiAktif = () =>
-  /^https:\/\/script\.google\.com\/.+\/exec$/.test(API_URL.trim());
+  /^https:\/\/script\.google\.com\/.+\/exec$/.test(alamatServer());
 
 function setStatus(kondisi, teks){
   $("statusTitik").className = "status-titik " + kondisi;
@@ -2239,13 +2684,20 @@ function perbaruiPeringatanAntrian(){
 /* Pengiriman perubahan memakai POST teks biasa supaya tidak memicu
    permintaan preflight yang sering ditolak Apps Script. */
 async function kirimKeServer(pesan){
-  const jawaban = await fetch(API_URL.trim(), {
+  const jawaban = await fetch(alamatServer(), {
     method:"POST",
     headers:{ "Content-Type":"text/plain;charset=utf-8" },
     body:JSON.stringify(pesan)
   });
 
   if(!jawaban.ok){
+    if(jawaban.status === 404){
+      throw new Error(
+        "Alamat server tidak ditemukan (404). Deployment Apps Script "
+        + "yang lama sudah tidak berlaku — salin URL /exec yang aktif "
+        + "lalu tekan tombol Ganti di layar masuk.");
+    }
+
     throw new Error("Server menjawab kode " + jawaban.status
       + ". Periksa deployment Apps Script.");
   }
@@ -2385,6 +2837,14 @@ async function muatDariServer(){
       rapikanAngka(item, ["masuk", "keluar"]));
 
     dataFoto = data.foto || [];
+
+    /* Dua baris berikut hanya terisi setelah Code.gs versi Inventaris
+       dipasang. Sebelum itu daftarnya kosong dan menu lain tetap
+       berjalan seperti biasa. */
+    dataInventaris = (data.inventaris || []).map(item =>
+      rapikanAngka(item, ["jumlah"]));
+
+    dataMutasi = data.mutasi || [];
 
     konfigurasi = Object.assign({}, KONFIG_AWAL, data.konfigurasi || {});
 
@@ -5545,7 +6005,8 @@ function renderLog(){
 
     if(!rekap.has(nama)){
       rekap.set(nama, {
-        nama:nama, timesheet:0, absensi:0, petty:0, konfigurasi:0,
+        nama:nama, timesheet:0, absensi:0, petty:0,
+        inventaris:0, mutasi:0, konfigurasi:0,
         total:0, terakhir:""
       });
     }
@@ -5569,11 +6030,12 @@ function renderLog(){
         + sel("Time Sheet", isi.timesheet, "numeric")
         + sel("Absensi", isi.absensi, "numeric")
         + sel("Petty Cash", isi.petty, "numeric")
+        + sel("Inventaris", isi.inventaris + isi.mutasi, "numeric")
         + sel("Target PO", isi.konfigurasi, "numeric")
         + sel("Total", "<b>" + isi.total + "</b>", "numeric")
         + sel("Terakhir aktif", waktuIndo(isi.terakhir))
         + "</tr>").join("")
-    : barisKosong(7, "Belum ada catatan aktivitas.");
+    : barisKosong(8, "Belum ada catatan aktivitas.");
 
   $("lencanaLog").textContent = daftarRekap.length + " penginput";
 
@@ -5763,6 +6225,553 @@ function unduhCsvLog(){
 }
 
 /*==========================================================
+  15B. INVENTARIS ASET
+  Daftar alat milik perusahaan beserta kondisinya, ditambah
+  riwayat serah terima supaya jelas alat terakhir dipegang
+  siapa. Semuanya memakai jalur simpan/hapus yang sudah ada,
+  hanya dengan tipe data baru "inventaris" dan "mutasi", jadi
+  data menu lain tidak tersentuh.
+==========================================================*/
+function warnaKondisi(kondisi){
+  const isi = String(kondisi || "").toLowerCase();
+
+  if(isi.includes("hilang")){ return "#7c2d12"; }
+  if(isi.includes("berat")){ return PALET.merah; }
+  if(isi.includes("ringan")){ return PALET.oranye; }
+
+  return PALET.hijau;
+}
+
+function lencanaKondisi(kondisi){
+  const teks = String(kondisi || "Baik");
+
+  return '<span style="display:inline-block;padding:2px 10px;'
+    + "border-radius:20px;font-size:12px;color:#fff;background:"
+    + warnaKondisi(teks) + '">' + aman(teks) + "</span>";
+}
+
+/* Kode aset berjalan per tahun: AEN-2026-001, AEN-2026-002, … */
+function kodeAsetBerikutnya(){
+  const tahun = new Date().getFullYear();
+
+  let tertinggi = 0;
+
+  dataInventaris.forEach(item => {
+    const cocok = String(item.kode || "").match(/^AEN-(\d{4})-(\d+)$/i);
+
+    if(cocok && cocok[1] === String(tahun)){
+      tertinggi = Math.max(tertinggi, Number(cocok[2]) || 0);
+    }
+  });
+
+  return "AEN-" + tahun + "-" + String(tertinggi + 1).padStart(3, "0");
+}
+
+/* Selama penginput belum mengetik sendiri kode asetnya, kotak Kode
+   Aset terus disegarkan mengikuti data terbaru dari server, supaya
+   nomornya tidak bentrok dengan aset yang sudah didaftarkan rekan
+   lain. Begitu diketik manual, isian itu dibiarkan apa adanya. */
+let kodeOtomatis = true;
+
+function asetDenganKode(kode){
+  const cari = String(kode || "").trim().toLowerCase();
+
+  return dataInventaris.find(item =>
+    String(item.kode || "").trim().toLowerCase() === cari) || null;
+}
+
+function asetTerurut(){
+  return dataInventaris.slice().sort((a, b) =>
+    String(a.kode || "").localeCompare(String(b.kode || ""), "id",
+      { numeric:true }));
+}
+
+/* Mengisi pilihan lokasi, penanggung jawab, dan daftar aset pada
+   formulir serta penyaring, tanpa menghilangkan pilihan yang
+   sedang aktif. */
+function isiPilihanAset(){
+  const lokasi = [...new Set(dataInventaris
+    .map(item => String(item.lokasi || "").trim())
+    .filter(Boolean))].sort();
+
+  const orang = [...new Set(dataInventaris
+    .map(item => String(item.pj || "").trim())
+    .filter(Boolean))].sort();
+
+  $("pilihanLokasi").innerHTML = lokasi
+    .map(isi => '<option value="' + aman(isi) + '">').join("");
+
+  $("pilihanPj").innerHTML = orang
+    .map(isi => '<option value="' + aman(isi) + '">').join("");
+
+  isiUlangPilihan("saringLokasi", "Semua lokasi", lokasi);
+  isiUlangPilihan("saringPj", "Semua nama", orang);
+
+  const pilihanMutasi = $("pilihanAsetMutasi");
+  const kodeAktif = pilihanMutasi.value;
+
+  pilihanMutasi.innerHTML = '<option value="">— pilih aset —</option>'
+    + asetTerurut().map(item =>
+        '<option value="' + aman(item.kode) + '">'
+        + aman(item.kode) + " — " + aman(item.nama)
+        + "</option>").join("");
+
+  if(kodeAktif && asetDenganKode(kodeAktif)){
+    pilihanMutasi.value = kodeAktif;
+  }
+}
+
+function isiUlangPilihan(idElemen, labelSemua, daftar){
+  const elemen = $(idElemen);
+  const terpilih = elemen.value;
+
+  elemen.innerHTML = '<option value="">' + labelSemua + "</option>"
+    + daftar.map(isi =>
+        '<option value="' + aman(isi) + '">' + aman(isi) + "</option>").join("");
+
+  if(terpilih && daftar.includes(terpilih)){
+    elemen.value = terpilih;
+  }
+}
+
+$("formInventaris").elements.kode.addEventListener("input", () => {
+  kodeOtomatis = false;
+});
+
+$("formInventaris").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const item = Object.fromEntries(new FormData(e.target).entries());
+
+  item.kode = String(item.kode || "").trim();
+  item.nama = String(item.nama || "").trim();
+  item.jumlah = Math.max(1, angka(item.jumlah));
+
+  const kembar = asetDenganKode(item.kode);
+
+  if(kembar && String(kembar.id) !== String(editIdInventaris)){
+    alert("Kode aset " + item.kode + " sudah dipakai untuk "
+      + kembar.nama + ".\nGanti kodenya supaya tidak tertukar.");
+    return;
+  }
+
+  const indeks = cariIndeks(dataInventaris, editIdInventaris);
+  const lama = indeks < 0 ? null : dataInventaris[indeks];
+
+  const sekarang = new Date().toISOString();
+
+  if(!lama){
+    item.id = idBaru();
+    item.penginput = namaPengguna;
+    item.waktuInput = sekarang;
+
+    dataInventaris.push(item);
+  }else{
+    item.id = lama.id;
+    item.penginput = lama.penginput || namaPengguna;
+    item.waktuInput = lama.waktuInput || sekarang;
+    item.pengubah = namaPengguna;
+    item.waktuUbah = sekarang;
+
+    dataInventaris[indeks] = item;
+  }
+
+  catatLokal(lama ? "Ubah" : "Simpan", "inventaris", item.tanggal,
+    item.kode + " — " + potong(item.nama, 30)
+    + " · " + item.kondisi + " · " + item.lokasi);
+
+  batalInventaris();
+  renderInventaris();
+  renderLog();
+
+  pesanLayar("Mengirim ke server…", false);
+
+  const tersimpan = await catatPerubahan({
+    aksi:"simpan", tipe:"inventaris", item:item
+  });
+
+  laporkanSimpan(tersimpan, "Aset " + item.kode);
+});
+
+function ubahAset(id){
+  const item = dataInventaris[cariIndeks(dataInventaris, id)];
+
+  if(!item){ return; }
+
+  editIdInventaris = id;
+  kodeOtomatis = false;
+
+  Object.entries(item).forEach(([key, value]) => {
+    const kolom = $("formInventaris").elements[key];
+
+    if(kolom && kolom.tagName){
+      kolom.value = key === "tanggal" ? normalisasiTanggal(value) : value;
+    }
+  });
+
+  $("judulInventaris").textContent = "Edit Aset " + item.kode;
+  $("formInventaris").scrollIntoView({ behavior:"smooth", block:"start" });
+}
+
+function hapusAset(id){
+  const item = dataInventaris[cariIndeks(dataInventaris, id)];
+
+  if(!item){ return; }
+
+  if(!confirm("Hapus aset " + item.kode + " — " + item.nama + " dari daftar?"
+    + "\n\nRiwayat serah terimanya tidak ikut terhapus.")){
+    return;
+  }
+
+  catatLokal("Hapus", "inventaris", item.tanggal,
+    item.kode + " — " + potong(item.nama, 30));
+
+  dataInventaris.splice(cariIndeks(dataInventaris, id), 1);
+
+  renderInventaris();
+  renderLog();
+
+  catatPerubahan({ aksi:"hapus", tipe:"inventaris", id:id });
+}
+
+function batalInventaris(){
+  editIdInventaris = null;
+  kodeOtomatis = true;
+
+  $("formInventaris").reset();
+  $("formInventaris").elements.jumlah.value = 1;
+  $("formInventaris").elements.kode.value = kodeAsetBerikutnya();
+
+  $("judulInventaris").textContent = "Input Aset Inventaris";
+}
+
+/* Tombol di baris aset: langsung membuka formulir serah terima
+   dengan aset tersebut sudah terpilih. */
+function serahAset(kode){
+  const item = asetDenganKode(kode);
+
+  if(!item){ return; }
+
+  const form = $("formMutasi");
+
+  form.elements.kode.value = item.kode;
+  form.elements.dari.value = item.pj || "";
+  form.elements.lokasi.value = "";
+  form.elements.kondisi.value = item.kondisi || "Baik";
+  form.elements.ke.value = "";
+
+  if(!form.elements.tanggal.value){
+    form.elements.tanggal.value = new Date().toISOString().slice(0, 10);
+  }
+
+  $("judulMutasi").textContent = "Serah Terima — " + item.kode
+    + " " + item.nama;
+
+  form.scrollIntoView({ behavior:"smooth", block:"start" });
+  form.elements.ke.focus();
+}
+
+$("formMutasi").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const isian = Object.fromEntries(new FormData(e.target).entries());
+
+  const aset = asetDenganKode(isian.kode);
+
+  if(!aset){
+    alert("Aset belum dipilih.");
+    return;
+  }
+
+  const sekarang = new Date().toISOString();
+
+  const item = {
+    id:idBaru(),
+    tanggal:isian.tanggal,
+    kode:aset.kode,
+    nama:aset.nama,
+    dari:String(isian.dari || aset.pj || "").trim(),
+    ke:String(isian.ke || "").trim(),
+    lokasi:String(isian.lokasi || "").trim() || String(aset.lokasi || ""),
+    kondisi:isian.kondisi,
+    keterangan:String(isian.keterangan || "").trim(),
+    penginput:namaPengguna,
+    waktuInput:sekarang
+  };
+
+  dataMutasi.push(item);
+
+  /* Daftar aset ikut diperbarui supaya kolom Penanggung Jawab,
+     Lokasi, dan Kondisi selalu menunjukkan keadaan terakhir. */
+  const indeksAset = cariIndeks(dataInventaris, aset.id);
+
+  const asetBaru = Object.assign({}, aset, {
+    pj:item.ke,
+    lokasi:item.lokasi,
+    kondisi:item.kondisi,
+    pengubah:namaPengguna,
+    waktuUbah:sekarang
+  });
+
+  dataInventaris[indeksAset] = asetBaru;
+
+  catatLokal("Simpan", "mutasi", item.tanggal,
+    item.kode + " · " + (item.dari || "-") + " → " + item.ke
+    + " · " + item.kondisi);
+
+  batalMutasi();
+  renderInventaris();
+  renderLog();
+
+  pesanLayar("Mengirim ke server…", false);
+
+  const tersimpan = await catatPerubahan({
+    aksi:"simpan", tipe:"mutasi", item:item
+  });
+
+  await catatPerubahan({
+    aksi:"simpan", tipe:"inventaris", item:asetBaru
+  });
+
+  laporkanSimpan(tersimpan, "Serah terima " + item.kode);
+});
+
+/* Riwayat serah terima sengaja tanpa tombol Edit — kalau salah,
+   hapus lalu catat ulang, supaya jejaknya tidak bisa dirapikan
+   diam-diam. */
+function hapusMutasi(id){
+  const item = dataMutasi[cariIndeks(dataMutasi, id)];
+
+  if(!item){ return; }
+
+  if(!confirm("Hapus catatan serah terima " + item.kode + " tanggal "
+    + tanggalIndo(item.tanggal) + "?"
+    + "\n\nData aset tidak ikut dikembalikan ke pemegang sebelumnya —"
+    + " betulkan lewat serah terima baru bila perlu.")){
+    return;
+  }
+
+  catatLokal("Hapus", "mutasi", item.tanggal,
+    item.kode + " · " + (item.dari || "-") + " → " + (item.ke || "-"));
+
+  dataMutasi.splice(cariIndeks(dataMutasi, id), 1);
+
+  renderInventaris();
+  renderLog();
+
+  catatPerubahan({ aksi:"hapus", tipe:"mutasi", id:id });
+}
+
+function batalMutasi(){
+  $("formMutasi").reset();
+  $("judulMutasi").textContent = "Serah Terima & Perubahan Kondisi";
+}
+
+function renderInventaris(){
+  isiPilihanAset();
+
+  /* Kode aset berikutnya disiapkan sendiri supaya penomoran tidak
+     bentrok saat beberapa orang menginput. */
+  const kotakKode = $("formInventaris").elements.kode;
+
+  if(!editIdInventaris && (kodeOtomatis || !kotakKode.value)){
+    kotakKode.value = kodeAsetBerikutnya();
+    kodeOtomatis = true;
+  }
+
+  const semua = asetTerurut();
+
+  const hitung = kondisi => semua.filter(item =>
+    String(item.kondisi || "Baik") === kondisi)
+    .reduce((total, item) => total + Math.max(1, angka(item.jumlah)), 0);
+
+  const totalUnit = semua.reduce((total, item) =>
+    total + Math.max(1, angka(item.jumlah)), 0);
+
+  $("kpiInventaris").innerHTML = `
+    <div class="card">
+      <span class="card-title">Total Aset</span>
+      <b>${angkaIndo(totalUnit)}</b>
+      <small>${semua.length} jenis alat terdaftar</small>
+    </div>
+
+    <div class="card">
+      <span class="card-title">Kondisi Baik</span>
+      <b>${angkaIndo(hitung("Baik"))}</b>
+      <small>Siap dipakai</small>
+    </div>
+
+    <div class="card">
+      <span class="card-title">Rusak</span>
+      <b>${angkaIndo(hitung("Rusak Ringan") + hitung("Rusak Berat"))}</b>
+      <small>Ringan ${angkaIndo(hitung("Rusak Ringan"))}
+        · berat ${angkaIndo(hitung("Rusak Berat"))}</small>
+    </div>
+
+    <div class="card">
+      <span class="card-title">Hilang</span>
+      <b>${angkaIndo(hitung("Hilang"))}</b>
+      <small>Perlu ditelusuri</small>
+    </div>
+  `;
+
+  /* Tabel daftar aset dengan penyaring. */
+  const cari = ($("cariAset").value || "").trim().toLowerCase();
+  const filterLokasi = $("saringLokasi").value || "";
+  const filterKondisi = $("saringKondisi").value || "";
+  const filterPj = $("saringPj").value || "";
+
+  const hasil = semua.filter(item => {
+    if(cari
+      && !String(item.kode || "").toLowerCase().includes(cari)
+      && !String(item.nama || "").toLowerCase().includes(cari)
+      && !String(item.merk || "").toLowerCase().includes(cari)){
+      return false;
+    }
+
+    if(filterLokasi && String(item.lokasi || "").trim() !== filterLokasi){
+      return false;
+    }
+
+    if(filterKondisi && String(item.kondisi || "Baik") !== filterKondisi){
+      return false;
+    }
+
+    if(filterPj && String(item.pj || "").trim() !== filterPj){
+      return false;
+    }
+
+    return true;
+  });
+
+  $("daftarAset").innerHTML = hasil.length
+    ? hasil.map(item => "<tr>"
+        + sel("Kode Aset", "<b>" + aman(item.kode) + "</b>")
+        + sel("Nama Alat", aman(item.nama))
+        + sel("Merk / Tipe", aman(item.merk || "-"))
+        + sel("No. Seri", aman(item.seri || "-"))
+        + sel("Jumlah", angkaIndo(Math.max(1, angka(item.jumlah)))
+            + " " + aman(item.satuan || "Unit"), "numeric")
+        + sel("Tgl. Beli", item.tanggal ? tanggalIndo(item.tanggal) : "-")
+        + sel("No. PO / Nota", aman(item.nota || "-"))
+        + sel("Lokasi", aman(item.lokasi || "-"))
+        + sel("Penanggung Jawab", "<b>" + aman(item.pj || "-") + "</b>")
+        + sel("Kondisi", lencanaKondisi(item.kondisi), "numeric")
+        + sel("Keterangan", aman(item.keterangan || "-"))
+        + sel("Foto", item.foto
+            ? '<a href="' + aman(item.foto) + '" target="_blank" rel="noopener">Buka</a>'
+            : "-", "numeric")
+        + sel("Diinput oleh", aman(item.pengubah || item.penginput || "-"))
+        + selAksiAset(item)
+        + "</tr>").join("")
+    : barisKosong(14, semua.length
+        ? "Tidak ada aset yang cocok dengan penyaring."
+        : "Belum ada aset yang didaftarkan.");
+
+  /* Rekap per penanggung jawab. */
+  const rekap = new Map();
+
+  semua.forEach(item => {
+    const nama = String(item.pj || "-").trim() || "-";
+
+    if(!rekap.has(nama)){
+      rekap.set(nama, {
+        nama:nama, jumlah:0,
+        "Baik":0, "Rusak Ringan":0, "Rusak Berat":0, "Hilang":0
+      });
+    }
+
+    const isi = rekap.get(nama);
+    const banyak = Math.max(1, angka(item.jumlah));
+    const kondisi = String(item.kondisi || "Baik");
+
+    isi.jumlah += banyak;
+
+    if(kondisi in isi){ isi[kondisi] += banyak; }
+  });
+
+  const daftarRekap = [...rekap.values()].sort((a, b) => b.jumlah - a.jumlah);
+
+  $("rekapPjAset").innerHTML = daftarRekap.length
+    ? daftarRekap.map(isi => "<tr>"
+        + sel("Penanggung Jawab", "<b>" + aman(isi.nama) + "</b>")
+        + sel("Jumlah Aset", angkaIndo(isi.jumlah), "numeric")
+        + sel("Baik", angkaIndo(isi["Baik"]), "numeric")
+        + sel("Rusak Ringan", angkaIndo(isi["Rusak Ringan"]), "numeric")
+        + sel("Rusak Berat", angkaIndo(isi["Rusak Berat"]), "numeric")
+        + sel("Hilang", angkaIndo(isi["Hilang"]), "numeric")
+        + "</tr>").join("")
+    : barisKosong(6, "Belum ada aset yang didaftarkan.");
+
+  $("lencanaAset").textContent = daftarRekap.length + " penanggung jawab";
+
+  /* Riwayat serah terima, terbaru di atas. */
+  const riwayat = dataMutasi.slice().sort((a, b) =>
+    String(b.tanggal || "").localeCompare(String(a.tanggal || ""))
+    || String(b.waktuInput || "").localeCompare(String(a.waktuInput || "")));
+
+  $("daftarMutasi").innerHTML = riwayat.length
+    ? riwayat.map(item => "<tr>"
+        + sel("Tanggal", tanggalIndo(item.tanggal))
+        + sel("Kode Aset", "<b>" + aman(item.kode) + "</b>")
+        + sel("Nama Alat", aman(item.nama || "-"))
+        + sel("Dari", aman(item.dari || "-"))
+        + sel("Kepada", "<b>" + aman(item.ke || "-") + "</b>")
+        + sel("Lokasi", aman(item.lokasi || "-"))
+        + sel("Kondisi", lencanaKondisi(item.kondisi), "numeric")
+        + sel("Keterangan", aman(item.keterangan || "-"))
+        + sel("Dicatat oleh", aman(item.penginput || "-"))
+        + tombolHapus("hapusMutasi", item.id)
+        + "</tr>").join("")
+    : barisKosong(sudahMasuk() ? 10 : 9,
+        "Belum ada catatan serah terima.");
+}
+
+/* Baris aset punya tiga tombol: serah terima, edit, dan hapus. */
+function selAksiAset(item){
+  if(!sudahMasuk()){ return ""; }
+
+  return sel("Aksi",
+    '<button onclick="serahAset(\'' + item.kode + '\')">Serah Terima</button>'
+    + '<button class="blue" onclick="ubahAset(\'' + item.id + '\')">Edit</button>'
+    + '<button class="red" onclick="hapusAset(\'' + item.id + '\')">Hapus</button>',
+    "action");
+}
+
+function unduhCsvInventaris(){
+  const baris = asetTerurut().map(item => [
+    item.kode, item.nama, item.merk || "", item.seri || "",
+    Math.max(1, angka(item.jumlah)), item.satuan || "Unit",
+    item.tanggal ? tanggalIndo(item.tanggal) : "",
+    item.nota || "", item.lokasi || "", item.pj || "",
+    item.kondisi || "", item.keterangan || "", item.foto || "",
+    item.pengubah || item.penginput || ""
+  ]);
+
+  unduhCsv("Inventaris-Aset-AEN.csv",
+    ["Kode Aset", "Nama Alat", "Merk/Tipe", "No. Seri", "Jumlah", "Satuan",
+     "Tanggal Beli", "No. PO/Nota", "Lokasi", "Penanggung Jawab",
+     "Kondisi", "Keterangan", "Link Foto", "Diinput Oleh"],
+    baris);
+}
+
+function unduhCsvMutasi(){
+  const baris = dataMutasi.slice().sort((a, b) =>
+    String(a.tanggal || "").localeCompare(String(b.tanggal || "")))
+    .map(item => [
+      item.tanggal ? tanggalIndo(item.tanggal) : "",
+      item.kode, item.nama || "", item.dari || "", item.ke || "",
+      item.lokasi || "", item.kondisi || "", item.keterangan || "",
+      item.penginput || ""
+    ]);
+
+  unduhCsv("Serah-Terima-Aset-AEN.csv",
+    ["Tanggal", "Kode Aset", "Nama Alat", "Dari", "Kepada", "Lokasi",
+     "Kondisi", "Keterangan", "Dicatat Oleh"],
+    baris);
+}
+
+/*==========================================================
   16. RENDER, PRINT, DAN JALANKAN
 ==========================================================*/
 function renderSemua(){
@@ -5771,6 +6780,7 @@ function renderSemua(){
   renderTimeSheet();
   renderAbsensi();
   renderPetty();
+  renderInventaris();
   renderLog();
 }
 
@@ -5793,6 +6803,7 @@ function cetakHalamanAktif(){
     absensi:"Laporan Daily Absensi",
     pettycash:"Laporan Petty Cash",
     foto:"Dokumentasi Foto Kegiatan",
+    inventaris:"Daftar Aset Inventaris",
     loginput:"Laporan Log Input Data"
   };
 
@@ -5861,6 +6872,7 @@ document.addEventListener("visibilitychange", () => {
 document.querySelector('nav button[data-menu="dashboard"]').classList.add("aktif");
 
 isiUlangBarisTitik([]);
+tampilkanAlamat();
 perbaruiKunci();
 renderSemua();
 
@@ -5887,6 +6899,7 @@ const NAMA_MENU_HADIR = {
   absensi   : "Daily Absensi",
   pettycash : "Petty Cash",
   foto      : "Foto Kegiatan",
+  inventaris: "Inventaris Aset",
   loginput  : "Log Input"
 };
 
